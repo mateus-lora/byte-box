@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.edu.atitus.product_service.clients.CurrencyClient;
@@ -132,4 +133,19 @@ public class OpenProductController {
 			return ResponseEntity.internalServerError().build();
 		}
 	}
+	
+    @GetMapping("/search")
+    public ResponseEntity<List<ProductEntity>> searchProductsByTheme(@RequestParam String theme) {
+        try {
+            List<ProductEntity> products = repository.findByThemeContainingIgnoreCase(theme);
+
+            if (products.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
+            System.err.println("Erro ao buscar produtos pelo tema: " + e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }
