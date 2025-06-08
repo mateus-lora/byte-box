@@ -134,8 +134,8 @@ public class OpenProductController {
 		}
 	}
 	
-    @GetMapping("/search")
-    public ResponseEntity<List<ProductEntity>> searchProductsByTheme(@RequestParam String theme) {
+    @GetMapping("/search/{theme}")
+    public ResponseEntity<List<ProductEntity>> searchProductsByTheme(@PathVariable String theme) {
         try {
             List<ProductEntity> products = repository.findByThemeContainingIgnoreCase(theme);
 
