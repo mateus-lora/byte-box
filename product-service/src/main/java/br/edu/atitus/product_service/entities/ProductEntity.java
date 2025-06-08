@@ -40,6 +40,9 @@ public class ProductEntity {
     @Column(name = "image_url", nullable = false, length = 255)
     private String imageUrl;	
     
+    @Column(name = "is_favorite")
+    private boolean isFavorite = false;
+    
 	@Transient
 	private String environment;
 	
@@ -116,6 +119,14 @@ public class ProductEntity {
 
 	public void setImageUrl(String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	public boolean isFavorite() {
+		return isFavorite;
+	}
+
+	public void setFavorite(boolean isFavorite) {
+		this.isFavorite = isFavorite;
 	}
 
 	public String getEnvironment() {

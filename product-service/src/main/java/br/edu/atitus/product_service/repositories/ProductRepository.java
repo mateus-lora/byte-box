@@ -12,4 +12,8 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long>{
 	
     List<ProductEntity> findByThemeContainingIgnoreCase(String theme);
 
+    List<ProductEntity> findByIsFavoriteTrue();
+
+    List<ProductEntity> findByIsFavoriteTrueAndThemeContainingIgnoreCase(String theme);
+
 }

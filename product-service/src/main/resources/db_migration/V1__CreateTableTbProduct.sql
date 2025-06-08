@@ -7,5 +7,6 @@ CREATE TABLE tb_product (
     price NUMERIC(10, 2) NOT NULL,
     currency VARCHAR(3) NOT NULL,
     stock INTEGER NOT NULL,
-    image_url VARCHAR(255) NOT NULL
+    image_url VARCHAR(255) NOT NULL,
+    is_favorite BOOLEAN DEFAULT FALSE
 );
