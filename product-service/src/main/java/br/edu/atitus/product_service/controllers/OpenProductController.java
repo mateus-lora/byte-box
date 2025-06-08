@@ -150,24 +150,24 @@ public class OpenProductController {
         }
     }
     
-	@PutMapping("/{id}/favorite")
-	@Transactional
-	public ResponseEntity<ProductEntity> toggleFavoriteStatus(@PathVariable Long id, @RequestParam boolean favorite) {
-		try {
-			ProductEntity product = repository.findById(id)
-					.orElseThrow(() -> new Exception("Produto não encontrado com o ID: " + id));
+    @PutMapping("/{id}/favorite/{status}")
+    @Transactional
+    public ResponseEntity<ProductEntity> toggleFavoriteStatus(@PathVariable Long id, @PathVariable boolean status) {
+        try {
+            ProductEntity product = repository.findById(id)
+                    .orElseThrow(() -> new Exception("Produto não encontrado com o ID: " + id));
 
-			product.setFavorite(favorite);
+            product.setFavorite(status);
 
-			ProductEntity updatedProduct = repository.save(product);
+            ProductEntity updatedProduct = repository.save(product);
 
-			return ResponseEntity.ok(updatedProduct);
+            return ResponseEntity.ok(updatedProduct);
 
-		} catch (Exception e) {
-			System.err.println("Erro ao atualizar status de favorito do produto: " + e.getMessage());
-			return ResponseEntity.internalServerError().body(null);
-		}
-	}
+        } catch (Exception e) {
+            System.err.println("Erro ao atualizar status de favorito do produto: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(null);
+        }
+    }
 
     @GetMapping("/favorites")
     public ResponseEntity<List<ProductEntity>> getFavoriteProducts() {
