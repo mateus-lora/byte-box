@@ -19,6 +19,7 @@ import br.edu.atitus.product_service.clients.CurrencyClient;
 import br.edu.atitus.product_service.clients.CurrencyResponse;
 import br.edu.atitus.product_service.entities.ProductEntity;
 import br.edu.atitus.product_service.repositories.ProductRepository;
+import jakarta.transaction.Transactional;
 
 @RestController
 @RequestMapping("products")
@@ -148,4 +149,54 @@ public class OpenProductController {
             return ResponseEntity.internalServerError().build();
         }
     }
+    
+	@PutMapping("/{id}/favorite")
+	@Transactional
+	public ResponseEntity<ProductEntity> toggleFavoriteStatus(@PathVariable Long id, @RequestParam boolean favorite) {
+		try {
+			ProductEntity product = repository.findById(id)
+					.orElseThrow(() -> new Exception("Produto não encontrado com o ID: " + id));
+
+			product.setFavorite(favorite);
+
+			ProductEntity updatedProduct = repository.save(product);
+
+			return ResponseEntity.ok(updatedProduct);
+
+		} catch (Exception e) {
+			System.err.println("Erro ao atualizar status de favorito do produto: " + e.getMessage());
+			return ResponseEntity.internalServerError().body(null);
+		}
+	}
+
+    @GetMapping("/favorites")
+    public ResponseEntity<List<ProductEntity>> getFavoriteProducts() {
+        try {
+            List<ProductEntity> favoriteProducts = repository.findByIsFavoriteTrue();
+
+            if (favoriteProducts.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(favoriteProducts);
+        } catch (Exception e) {
+            System.err.println("Erro ao buscar produtos favoritos: " + e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    @GetMapping("/favorites/search/{theme}")
+    public ResponseEntity<List<ProductEntity>> searchFavoriteProductsByTheme(@PathVariable String theme) {
+        try {
+            List<ProductEntity> products = repository.findByIsFavoriteTrueAndThemeContainingIgnoreCase(theme);
+
+            if (products.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
+            System.err.println("Erro ao buscar produtos favoritos pelo tema: " + e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
 }
