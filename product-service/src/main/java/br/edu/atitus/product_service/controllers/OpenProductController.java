@@ -39,6 +39,25 @@ public class OpenProductController {
 
 	@Value("${server.port}")
 	private int serverPort;
+	
+    private void applyCurrencyConversion(ProductEntity product, String targetCurrency) {
+        product.setEnvironment("Product-service running on Port: " + serverPort);
+
+        if (product.getCurrency().equals(targetCurrency)) {
+            product.setConvertedPrice(product.getPrice());
+        } else {
+            CurrencyResponse currency = currencyClient.getCurrency(product.getPrice(), product.getCurrency(),
+                    targetCurrency);
+            if (currency != null) {
+                product.setConvertedPrice(currency.getConvertedValue());
+                product.setEnvironment(product.getEnvironment() + " - " + currency.getEnviroment());
+            } else {
+                product.setConvertedPrice(-1);
+                product.setEnvironment(product.getEnvironment() + " - Currency unavalaible");
+            }
+        }
+    }
+
 
 	@GetMapping("/{idProduct}/{targetCurrency}")
 	public ResponseEntity<ProductEntity> getProduct(@PathVariable Long idProduct, @PathVariable String targetCurrency)
@@ -77,20 +96,24 @@ public class OpenProductController {
 		return ResponseEntity.ok(product);
 	}
 	
-	@GetMapping
-	public ResponseEntity<List<ProductEntity>> getAllProducts() {
-		try {
-			List<ProductEntity> products = repository.findAll();
-			
-			if (products.isEmpty()) {
-				return ResponseEntity.noContent().build();
-			}
-			return ResponseEntity.ok(products);
-		} catch (Exception e) {
-			System.err.println("Erro ao buscar todos os produtos: " + e.getMessage());
-			return ResponseEntity.internalServerError().build();
-		}
-	}
+    @GetMapping("/{targetCurrency}")
+    public ResponseEntity<List<ProductEntity>> getAllProducts(
+            @PathVariable String targetCurrency) {
+        try {
+            List<ProductEntity> products = repository.findAll();
+            
+            if (products.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            
+            products.forEach(product -> applyCurrencyConversion(product, targetCurrency.toUpperCase()));
+
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
+            System.err.println("Erro ao buscar todos os produtos: " + e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 
 	@PostMapping
 	public ResponseEntity<ProductEntity> createProduct(@RequestBody ProductEntity product) {
@@ -134,15 +157,20 @@ public class OpenProductController {
 			return ResponseEntity.internalServerError().build();
 		}
 	}
-	
-    @GetMapping("/search/{theme}")
-    public ResponseEntity<List<ProductEntity>> searchProductsByTheme(@PathVariable String theme) {
+    
+    @GetMapping("/search/{theme}/{targetCurrency}")
+    public ResponseEntity<List<ProductEntity>> searchProductsByTheme(
+            @PathVariable String theme,
+            @PathVariable String targetCurrency) {
         try {
             List<ProductEntity> products = repository.findByThemeContainingIgnoreCase(theme);
 
             if (products.isEmpty()) {
                 return ResponseEntity.noContent().build();
             }
+            
+            products.forEach(product -> applyCurrencyConversion(product, targetCurrency.toUpperCase()));
+
             return ResponseEntity.ok(products);
         } catch (Exception e) {
             System.err.println("Erro ao buscar produtos pelo tema: " + e.getMessage());
@@ -168,15 +196,19 @@ public class OpenProductController {
             return ResponseEntity.internalServerError().body(null);
         }
     }
-
-    @GetMapping("/favorites")
-    public ResponseEntity<List<ProductEntity>> getFavoriteProducts() {
+    
+    @GetMapping("/favorites/{targetCurrency}")
+    public ResponseEntity<List<ProductEntity>> getFavoriteProducts(
+            @PathVariable String targetCurrency) {
         try {
             List<ProductEntity> favoriteProducts = repository.findByIsFavoriteTrue();
 
             if (favoriteProducts.isEmpty()) {
                 return ResponseEntity.noContent().build();
             }
+            
+            favoriteProducts.forEach(product -> applyCurrencyConversion(product, targetCurrency.toUpperCase()));
+
             return ResponseEntity.ok(favoriteProducts);
         } catch (Exception e) {
             System.err.println("Erro ao buscar produtos favoritos: " + e.getMessage());
@@ -184,14 +216,19 @@ public class OpenProductController {
         }
     }
     
-    @GetMapping("/favorites/search/{theme}")
-    public ResponseEntity<List<ProductEntity>> searchFavoriteProductsByTheme(@PathVariable String theme) {
+    @GetMapping("/favorites/search/{theme}/{targetCurrency}")
+    public ResponseEntity<List<ProductEntity>> searchFavoriteProductsByTheme(
+            @PathVariable String theme,
+            @PathVariable String targetCurrency) {
         try {
             List<ProductEntity> products = repository.findByIsFavoriteTrueAndThemeContainingIgnoreCase(theme);
 
             if (products.isEmpty()) {
                 return ResponseEntity.noContent().build();
             }
+            
+            products.forEach(product -> applyCurrencyConversion(product, targetCurrency.toUpperCase()));
+
             return ResponseEntity.ok(products);
         } catch (Exception e) {
             System.err.println("Erro ao buscar produtos favoritos pelo tema: " + e.getMessage());
