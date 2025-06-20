@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -116,6 +117,7 @@ public class OpenProductController {
     }
 
 	@PostMapping
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<ProductEntity> createProduct(@RequestBody ProductEntity product) {
 		try {
 			ProductEntity savedProduct = repository.save(product);
@@ -127,6 +129,7 @@ public class OpenProductController {
 	}
 
 	@PutMapping("/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<ProductEntity> updateProduct(@PathVariable Long id, @RequestBody ProductEntity product) {
 		try {
 			if (!repository.existsById(id)) {
@@ -144,6 +147,7 @@ public class OpenProductController {
 	}
 
 	@DeleteMapping("/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
 		try {
 			if (!repository.existsById(id)) {
@@ -178,6 +182,7 @@ public class OpenProductController {
         }
     }
     
+    //IREI DELETAR
     @PutMapping("/{id}/favorite/{status}")
     @Transactional
     public ResponseEntity<ProductEntity> toggleFavoriteStatus(@PathVariable Long id, @PathVariable boolean status) {
