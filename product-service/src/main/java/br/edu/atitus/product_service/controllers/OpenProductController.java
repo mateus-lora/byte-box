@@ -4,6 +4,11 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,11 +19,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import br.edu.atitus.product_service.clients.CurrencyClient;
 import br.edu.atitus.product_service.clients.CurrencyResponse;
 import br.edu.atitus.product_service.entities.ProductEntity;
 import br.edu.atitus.product_service.repositories.ProductRepository;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.transaction.Transactional;
 
 @RestController
@@ -58,112 +66,51 @@ public class OpenProductController {
         }
     }
 
-
-	@GetMapping("/{idProduct}/{targetCurrency}")
-	public ResponseEntity<ProductEntity> getProduct(@PathVariable Long idProduct, @PathVariable String targetCurrency)
-			throws Exception {
-
-		targetCurrency = targetCurrency.toUpperCase();
-		String nameCache = "Product";
-		String keyCache = idProduct + targetCurrency;
-
-		ProductEntity product = cacheManager.getCache(nameCache).get(keyCache, ProductEntity.class);
-
-		if (product == null) {
-			product = repository.findById(idProduct).orElseThrow(() -> new Exception("Product not found"));
-			
-			product.setEnvironment("Product-service running on Port: " + serverPort);
-
-			if (product.getCurrency().equals(targetCurrency)) {
-				product.setConvertedPrice(product.getPrice());
-			} else {
-				CurrencyResponse currency = currencyClient.getCurrency(product.getPrice(), product.getCurrency(),
-						targetCurrency);
-				if (currency != null) {
-					product.setConvertedPrice(currency.getConvertedValue());
-					product.setEnvironment(product.getEnvironment() + " - " + currency.getEnviroment());
-					
-					cacheManager.getCache(nameCache).put(keyCache, product);
-				} else {
-					product.setConvertedPrice(-1);
-					product.setEnvironment(product.getEnvironment() + " - Currency unavalaible");
-				}
-			}
-			
-		} else {
-			product.setEnvironment("Product-service running on Port: " + serverPort + " - Datasource: cache");
-		}
-		return ResponseEntity.ok(product);
-	}
-	
+	@Operation(description = "Lista de Produtos")
     @GetMapping("/{targetCurrency}")
-    public ResponseEntity<List<ProductEntity>> getAllProducts(
-            @PathVariable String targetCurrency) {
-        try {
-            List<ProductEntity> products = repository.findAll();
-            
-            if (products.isEmpty()) {
-                return ResponseEntity.noContent().build();
-            }
-            
-            products.forEach(product -> applyCurrencyConversion(product, targetCurrency.toUpperCase()));
-
-            return ResponseEntity.ok(products);
-        } catch (Exception e) {
-            System.err.println("Erro ao buscar todos os produtos: " + e.getMessage());
-            return ResponseEntity.internalServerError().build();
-        }
+    public ResponseEntity<Page<ProductEntity>> getAllProducts(
+    		@PathVariable String targetCurrency,
+    		@PageableDefault(page = 0, size = 5, sort = "description", direction = Direction.ASC)
+    		Pageable pageable) throws Exception {
+    	Page<ProductEntity> products = repository.findAll(pageable);
+    	for (ProductEntity product : products) {
+            applyCurrencyConversion(product, targetCurrency);
+    	}
+    	return ResponseEntity.ok(products);
     }
 
-	@PostMapping
-	public ResponseEntity<ProductEntity> createProduct(@RequestBody ProductEntity product) {
-		try {
-			ProductEntity savedProduct = repository.save(product);
-			return ResponseEntity.status(201).body(savedProduct);
-		} catch (Exception e) {
-			System.err.println("Erro ao criar produto: " + e.getMessage());
-			return ResponseEntity.internalServerError().build();
-		}
-	}
+	@Operation(description = "Buscar Produto por ID")
+    @GetMapping("/{idProduct}/{targetCurrency}")
+    public ResponseEntity<ProductEntity> getProduct(@PathVariable Long idProduct, @PathVariable String targetCurrency)
+            throws Exception {
 
-	@PutMapping("/{id}")
-	public ResponseEntity<ProductEntity> updateProduct(@PathVariable Long id, @RequestBody ProductEntity product) {
-		try {
-			if (!repository.existsById(id)) {
-				return ResponseEntity.notFound().build();
-			}
+        targetCurrency = targetCurrency.toUpperCase();
+        String nameCache = "Product";
+        String keyCache = idProduct + "-" + targetCurrency;
 
-			product.setId(id);
+        ProductEntity product = cacheManager.getCache(nameCache).get(keyCache, ProductEntity.class);
 
-			ProductEntity updatedProduct = repository.save(product);
-			return ResponseEntity.ok(updatedProduct);
-		} catch (Exception e) {
-			System.err.println("Erro ao atualizar produto: " + e.getMessage());
-			return ResponseEntity.internalServerError().build();
-		}
-	}
+        if (product == null) {
+            product = repository.findById(idProduct).orElseThrow(() -> new Exception("Product not found"));
 
-	@DeleteMapping("/{id}")
-	public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-		try {
-			if (!repository.existsById(id)) {
-				return ResponseEntity.notFound().build();
-			}
+            applyCurrencyConversion(product, targetCurrency);
 
-			repository.deleteById(id);
-			return ResponseEntity.noContent().build();
-		} catch (Exception e) {
-			System.err.println("Erro ao deletar produto: " + e.getMessage());
-			return ResponseEntity.internalServerError().build();
-		}
-	}
+            cacheManager.getCache(nameCache).put(keyCache, product);
+
+        } else {
+            product.setEnvironment("Product-service running on Port: " + serverPort + " - Datasource: cache");
+        }
+
+        return ResponseEntity.ok(product);
+    }
     
-    @GetMapping("/search/{theme}/{targetCurrency}")
+	@Operation(description = "Pesquisar Produto")
+    @GetMapping("/search/{contains}/{targetCurrency}")
     public ResponseEntity<List<ProductEntity>> searchProductsByTheme(
-            @PathVariable String theme,
+            @PathVariable String contains,
             @PathVariable String targetCurrency) {
         try {
-            List<ProductEntity> products = repository.findByThemeContainingIgnoreCase(theme);
+            List<ProductEntity> products = repository.findByThemeContainingIgnoreCase(contains);
 
             if (products.isEmpty()) {
                 return ResponseEntity.noContent().build();
@@ -178,62 +125,30 @@ public class OpenProductController {
         }
     }
     
-    @PutMapping("/{id}/favorite/{status}")
-    @Transactional
-    public ResponseEntity<ProductEntity> toggleFavoriteStatus(@PathVariable Long id, @PathVariable boolean status) {
-        try {
-            ProductEntity product = repository.findById(id)
-                    .orElseThrow(() -> new Exception("Produto não encontrado com o ID: " + id));
-
-            product.setFavorite(status);
-
-            ProductEntity updatedProduct = repository.save(product);
-
-            return ResponseEntity.ok(updatedProduct);
-
-        } catch (Exception e) {
-            System.err.println("Erro ao atualizar status de favorito do produto: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(null);
-        }
+	@Hidden
+    @GetMapping("/noconverter/{idProduct}")
+    public ResponseEntity<ProductEntity> getNoConverter(@PathVariable Long idProduct) throws Exception {
+    	var product = repository.findById(idProduct).orElseThrow(() -> new Exception("Produto não encontrado"));
+    	product.setConvertedPrice(-1);
+		product.setEnvironment("Product-service running on Port: " + serverPort);
+		return ResponseEntity.ok(product);
     }
     
-    @GetMapping("/favorites/{targetCurrency}")
-    public ResponseEntity<List<ProductEntity>> getFavoriteProducts(
-            @PathVariable String targetCurrency) {
-        try {
-            List<ProductEntity> favoriteProducts = repository.findByIsFavoriteTrue();
+	@Hidden
+    @PutMapping("/{productId}/{decreaseStock}")
+    public ResponseEntity<Void> decreaseStock(@PathVariable Long productId, @PathVariable int decreaseStock) {
+        ProductEntity product = repository.findById(productId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produto não encontrado"));
 
-            if (favoriteProducts.isEmpty()) {
-                return ResponseEntity.noContent().build();
-            }
-            
-            favoriteProducts.forEach(product -> applyCurrencyConversion(product, targetCurrency.toUpperCase()));
-
-            return ResponseEntity.ok(favoriteProducts);
-        } catch (Exception e) {
-            System.err.println("Erro ao buscar produtos favoritos: " + e.getMessage());
-            return ResponseEntity.internalServerError().build();
+        if (product.getStock() < decreaseStock) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Estoque do producto insuficiente" + productId);
         }
-    }
-    
-    @GetMapping("/favorites/search/{theme}/{targetCurrency}")
-    public ResponseEntity<List<ProductEntity>> searchFavoriteProductsByTheme(
-            @PathVariable String theme,
-            @PathVariable String targetCurrency) {
-        try {
-            List<ProductEntity> products = repository.findByIsFavoriteTrueAndThemeContainingIgnoreCase(theme);
 
-            if (products.isEmpty()) {
-                return ResponseEntity.noContent().build();
-            }
-            
-            products.forEach(product -> applyCurrencyConversion(product, targetCurrency.toUpperCase()));
+        product.setStock(product.getStock() - decreaseStock);
 
-            return ResponseEntity.ok(products);
-        } catch (Exception e) {
-            System.err.println("Erro ao buscar produtos favoritos pelo tema: " + e.getMessage());
-            return ResponseEntity.internalServerError().build();
-        }
+        repository.save(product);
+
+        return ResponseEntity.ok().build();
     }
     
 }

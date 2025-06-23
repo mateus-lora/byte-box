@@ -6,10 +6,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class GatewayConfig {
+public class ApiGatewayConfig {
 	
 	@Bean
-	RouteLocator getRoutes(RouteLocatorBuilder builder) {
+	RouteLocator getGatewayRoutes(RouteLocatorBuilder builder) {
 		return builder.routes()
 			.route(p -> p
 					.path("/get")
@@ -23,6 +23,15 @@ public class GatewayConfig {
 			.route(p -> p
 					.path("/products/**")
 					.uri("lb://product-service"))
+			.route(p -> p
+					.path("/ws/products/**")
+					.uri("lb://product-service"))
+			.route(p -> p
+					.path("/auth/**")
+					.uri("lb://auth-service"))
+			.route(p -> p
+					.path("/ws/orders/**")
+					.uri("lb://order-service"))
 			.build();
 	}
 	

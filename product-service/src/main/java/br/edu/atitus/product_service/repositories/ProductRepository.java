@@ -10,10 +10,6 @@ import br.edu.atitus.product_service.entities.ProductEntity;
 @Repository
 public interface ProductRepository extends JpaRepository<ProductEntity, Long>{
 	
-    List<ProductEntity> findByThemeContainingIgnoreCase(String theme);
-
-    List<ProductEntity> findByIsFavoriteTrue();
-
-    List<ProductEntity> findByIsFavoriteTrueAndThemeContainingIgnoreCase(String theme);
+    List<ProductEntity> findByThemeContainingIgnoreCase(String contains);
 
 }
