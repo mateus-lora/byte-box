@@ -10,4 +10,6 @@ import br.edu.atitus.order_service.entities.OrderEntity;
 @Repository
 public interface OrderRepository extends JpaRepository<OrderEntity, Long>{
 	Page<OrderEntity> findByCustomerId(Long customerId, Pageable pageable);
+	
+    Page<OrderEntity> findAll(Pageable pageable);
 }

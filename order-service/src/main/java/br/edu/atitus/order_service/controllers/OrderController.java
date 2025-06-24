@@ -3,12 +3,14 @@ package br.edu.atitus.order_service.controllers;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -66,12 +68,8 @@ public class OrderController {
             item.setOrder(order);
             
             // Diminuir estoque do produto
-            try {
-                productClient.decreaseStock(dto.productId(), dto.quantity());
-            } catch (Exception e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao diminuir o estoque do produto " + dto.productId() + ": " + e.getMessage(), e);
-            }
-            
+            productClient.decreaseStock(dto.productId(), dto.quantity());
+
             return item;
         }).toList();
 
@@ -92,7 +90,18 @@ public class OrderController {
 			 @RequestHeader("X-User-Email") String userEmail,
 			 @RequestHeader("X-User-Type")Integer userType) {
 		targetCurrency = targetCurrency.toUpperCase();
-		Page<OrderEntity> orders = orderService.findOrdersByCustomerId(userId, targetCurrency, pageable);
-		return ResponseEntity.ok(orders);
+        if (userType == 0) {
+            return ResponseEntity.ok(orderService.findAll(targetCurrency, pageable));
+        } else {
+            return ResponseEntity.ok(orderService.findOrdersByCustomerId(userId, targetCurrency, pageable));
+        }
+
 	}
+	
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<String> handleException(Exception e) {
+		String cleanMessage = e.getMessage().replaceAll("[\\r\\n]", " ");
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(cleanMessage);
+	}
+
 }
